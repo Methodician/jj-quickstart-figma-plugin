@@ -1,0 +1,25 @@
+<h2>Rectangle Creator</h2>
+<p>Count: <input id="count" value="25" /></p>
+<button id="create">Create</button>
+<button id="cancel">Cancel</button>
+<script>
+  onmessage = (event) => {
+    const message = event.data.pluginMessage;
+    if (message.type === 'count') {
+      console.log('ui count', message.count);
+      document.getElementById('count').value = message.count;
+    }
+  };
+  document.getElementById('create').onclick = () => {
+    const textbox = document.getElementById('count');
+    const count = parseInt(textbox.value, 10);
+    parent.postMessage(
+      { pluginMessage: { type: 'create-rectangles', count } },
+      '*'
+    );
+  };
+
+  document.getElementById('cancel').onclick = () => {
+    parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+  };
+</script>
