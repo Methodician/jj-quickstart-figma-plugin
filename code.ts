@@ -7,25 +7,15 @@
 // full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
 
 // This shows the HTML page in "ui.html".
-figma.showUI(__html__);
 
 const page = figma.currentPage;
 let initialCount = 0;
-
-figma.ui.onmessage = async (msg: { type: string; count: number }) => {
-  if (msg.type === 'create-rectangles') {
-    await setCount(msg.count);
-    initialCount = msg.count;
-    await createRectangles();
-    figma.closePlugin();
-  }
-};
 
 const createRectangles = async () => {
   reduceOpacity();
   const count = await getCount();
   const separation = await getAndIterateDistance(count);
-  addAndSelectRectangles(count, separation);
+  addRectangles(count, separation);
   if (count > 2) {
     await iterateCount();
     await createRectangles();
@@ -45,10 +35,13 @@ const reduceOpacity = () => {
   }
 };
 
-const addAndSelectRectangles = (count: number, separation: number) => {
+const addRectangles = (count: number, separation: number) => {
   for (let i = 0; i < count; i++) {
     const rect = figma.createRectangle();
-    rect.x = i * separation;
+    const angle = 0.1 * i;
+    const spiralRadius = separation * angle;
+    rect.x = spiralRadius * Math.cos(angle);
+    rect.y = spiralRadius * Math.sin(angle);
     rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }];
     page.appendChild(rect);
   }
@@ -110,6 +103,32 @@ const getAndIterateDistance = async (count: number) => {
   return 0;
 };
 
-getCount().then((count) => {
-  figma.ui.postMessage({ type: 'count', count });
+figma.parameters.on('input', ({ parameters, query, key, result }) => {
+  console.log('parameters input', { parameters, query, key, result });
+  switch (key) {
+    case 'count':
+      result.setSuggestions(
+        ['16', '23', '50', '99'].filter((s) => s.includes(query))
+      );
+      break;
+    case 'distance':
+      result.setSuggestions(
+        ['100', '200', '300', '400'].filter((s) => s.includes(query))
+      );
+      break;
+    default:
+      return;
+  }
+});
+
+figma.on('run', async ({ command, parameters }) => {
+  console.log('run', { command, parameters });
+  if (!parameters) return;
+  if (command === 'create-rectangles') {
+    await setCount(parameters.count);
+    initialCount = parameters.count;
+    await createRectangles();
+    console.log('did it');
+  }
+  figma.closePlugin();
 });
