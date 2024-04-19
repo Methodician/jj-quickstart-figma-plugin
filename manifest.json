@@ -59,6 +59,7 @@
     "allowedDomains": [
       "https://figma.com",
       "https://www.gravatar.com/",
+      "https://www.gravatar.com/avatar",
       "https://httpbin.org/get",
       "https://jsonplaceholder.typicode.com/posts/",
       "https://picsum.photos/"

@@ -176,35 +176,11 @@ figma.parameters.on('input', ({ query, key, result }) => {
   }
 });
 
-figma.on('run', async ({ command, parameters }) => {
+figma.on('run', async (event) => {
+  const { command, parameters } = event;
   try {
-    console.log('run', { command, parameters });
-    if (command === 'create-rectangles') {
-      if (!parameters?.count) {
-        return figma.closePlugin('Count parameter is required');
-      }
-      await setCount(parameters.count);
-      initialCount = parameters.count;
-      await createRectangles();
-    } else if (command === 'network-request') {
-      if (!parameters?.requestUrl) {
-        return figma.closePlugin('Request URL parameter is required');
-      }
-      const something = await fetchSomething(parameters.requestUrl);
-      const text = JSON.stringify(something, null, 2);
-      await addPopulatedTextNode(text);
-    } else if (command === 'add-image') {
-      if (!parameters?.imageUrl) {
-        return figma.closePlugin('Image URL parameter is required');
-      }
-      if (parameters?.width && parameters?.height) {
-        await createImage(parameters.imageUrl, {
-          width: parseInt(parameters.width, 10),
-          height: parseInt(parameters.height, 10),
-        });
-      } else {
-        await createImage(parameters.imageUrl);
-      }
+    if (parameters) {
+      await runWithParamsAndCommand(command, parameters);
     }
   } catch (error) {
     console.error(error);
@@ -216,3 +192,43 @@ figma.on('run', async ({ command, parameters }) => {
     figma.closePlugin(`Completed ${command}.`);
   }
 });
+
+const runWithParamsAndCommand = async (
+  command: string,
+  parameters: ParameterValues
+) => {
+  console.log({ command, parameters });
+  switch (command) {
+    case 'create-rectangles':
+      if (!parameters.count) {
+        return figma.closePlugin('Count parameter is required');
+      }
+      await setCount(parameters.count);
+      initialCount = parameters.count;
+      await createRectangles();
+      break;
+    case 'network-request': {
+      if (!parameters.requestUrl) {
+        return figma.closePlugin('Request URL parameter is required');
+      }
+      const something = await fetchSomething(parameters.requestUrl);
+      const text = JSON.stringify(something, null, 2);
+      await addPopulatedTextNode(text);
+      break;
+    }
+    case 'add-image': {
+      if (!parameters.imageUrl) {
+        return figma.closePlugin('Image URL parameter is required');
+      }
+      if (parameters.width && parameters.height) {
+        await createImage(parameters.imageUrl, {
+          width: parseInt(parameters.width, 10),
+          height: parseInt(parameters.height, 10),
+        });
+      } else {
+        await createImage(parameters.imageUrl);
+      }
+      break;
+    }
+  }
+};
