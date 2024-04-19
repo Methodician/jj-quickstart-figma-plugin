@@ -9,7 +9,19 @@
   "editorType": ["figma"],
   "menu": [
     {
-      "name": "rectangle gradient maker",
+      "name": "Network Request",
+      "command": "network-request",
+      "parameters": [
+        {
+          "name": "url",
+          "key": "requestUrl",
+          "allowFreeform": true,
+          "optional": true
+        }
+      ]
+    },
+    {
+      "name": "Make Spiral from Rectangles",
       "command": "create-rectangles",
       "parameters": [
         {
@@ -18,9 +30,40 @@
           "allowFreeform": true
         }
       ]
+    },
+    {
+      "name": "Add Image from URL",
+      "command": "add-image",
+      "parameters": [
+        {
+          "name": "url",
+          "key": "imageUrl",
+          "allowFreeform": true
+        },
+        {
+          "name": "height",
+          "key": "height",
+          "allowFreeform": true,
+          "optional": true
+        },
+        {
+          "name": "width",
+          "key": "width",
+          "allowFreeform": true,
+          "optional": true
+        }
+      ]
     }
   ],
   "networkAccess": {
-    "allowedDomains": ["none"]
+    "allowedDomains": [
+      "https://figma.com",
+      "https://www.gravatar.com/",
+      "https://httpbin.org/get",
+      "https://jsonplaceholder.typicode.com/posts/",
+      "https://picsum.photos/"
+    ],
+    "reasoning": "We can only make network requests to certain domains",
+    "devAllowedDomains": []
   }
 }

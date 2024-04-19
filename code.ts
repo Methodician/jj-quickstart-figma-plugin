@@ -11,6 +11,47 @@
 const page = figma.currentPage;
 let initialCount = 0;
 
+const createImage = async (
+  imageUrl: string,
+  dimensions?: { width: number; height: number }
+) => {
+  // Create a rectangle node with the necessary dimensions
+  const image = await figma.createImageAsync(imageUrl);
+  const _dimensions = dimensions || (await image.getSizeAsync());
+  if (_dimensions.width > 4096 || _dimensions.height > 4096) {
+    return figma.closePlugin(
+      'Width and height must not be more than 4096 pixels'
+    );
+  }
+  if (isNaN(_dimensions.width) || isNaN(_dimensions.height)) {
+    return figma.closePlugin('Width and height must be numbers');
+  }
+  const node = figma.createRectangle();
+  node.resize(_dimensions.width, _dimensions.height);
+
+  // Render the image by filling the rectangle
+  node.fills = [
+    {
+      type: 'IMAGE',
+      imageHash: image.hash,
+      scaleMode: 'FILL',
+    },
+  ];
+};
+
+const fetchSomething = async (fetchUrl: string) => {
+  const response = await fetch(fetchUrl);
+  const json = await response.json();
+  return json;
+};
+
+const addPopulatedTextNode = async (text: string) => {
+  const textNode = figma.createText();
+  await figma.loadFontAsync(textNode.fontName as FontName);
+
+  textNode.characters = text;
+};
+
 const createRectangles = async () => {
   reduceOpacity();
   const count = await getCount();
@@ -103,8 +144,7 @@ const getAndIterateDistance = async (count: number) => {
   return 0;
 };
 
-figma.parameters.on('input', ({ parameters, query, key, result }) => {
-  console.log('parameters input', { parameters, query, key, result });
+figma.parameters.on('input', ({ query, key, result }) => {
   switch (key) {
     case 'count':
       result.setSuggestions(
@@ -116,19 +156,63 @@ figma.parameters.on('input', ({ parameters, query, key, result }) => {
         ['100', '200', '300', '400'].filter((s) => s.includes(query))
       );
       break;
+    case 'requestUrl':
+      result.setSuggestions([
+        query,
+        'https://httpbin.org/get?success=true',
+        'https://jsonplaceholder.typicode.com/posts/1',
+      ]);
+      break;
+    case 'imageUrl':
+      result.setSuggestions([
+        query,
+        'https://picsum.photos/200/300',
+        'https://picsum.photos/256',
+        'https://picsum.photos/512',
+      ]);
+      break;
     default:
       return;
   }
 });
 
 figma.on('run', async ({ command, parameters }) => {
-  console.log('run', { command, parameters });
-  if (!parameters) return;
-  if (command === 'create-rectangles') {
-    await setCount(parameters.count);
-    initialCount = parameters.count;
-    await createRectangles();
-    console.log('did it');
+  try {
+    console.log('run', { command, parameters });
+    if (command === 'create-rectangles') {
+      if (!parameters?.count) {
+        return figma.closePlugin('Count parameter is required');
+      }
+      await setCount(parameters.count);
+      initialCount = parameters.count;
+      await createRectangles();
+    } else if (command === 'network-request') {
+      if (!parameters?.requestUrl) {
+        return figma.closePlugin('Request URL parameter is required');
+      }
+      const something = await fetchSomething(parameters.requestUrl);
+      const text = JSON.stringify(something, null, 2);
+      await addPopulatedTextNode(text);
+    } else if (command === 'add-image') {
+      if (!parameters?.imageUrl) {
+        return figma.closePlugin('Image URL parameter is required');
+      }
+      if (parameters?.width && parameters?.height) {
+        await createImage(parameters.imageUrl, {
+          width: parseInt(parameters.width, 10),
+          height: parseInt(parameters.height, 10),
+        });
+      } else {
+        await createImage(parameters.imageUrl);
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    error && figma.notify(error.toString());
+    figma.closePlugin(
+      `The command ${command} failed. Check the console for more info.`
+    );
+  } finally {
+    figma.closePlugin(`Completed ${command}.`);
   }
-  figma.closePlugin();
 });
