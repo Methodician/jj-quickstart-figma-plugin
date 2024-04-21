@@ -7,6 +7,7 @@
   "enableProposedApi": false,
   "documentAccess": "dynamic-page",
   "editorType": ["figma"],
+  "ui": "ui.html",
   "menu": [
     {
       "name": "Network Request",
@@ -53,13 +54,19 @@
           "optional": true
         }
       ]
+    },
+    {
+      "name": "Invert Image Colors",
+      "command": "invert-image-colors"
+    },
+    {
+      "name": "Experiment with text",
+      "command": "test-text-nodes"
     }
   ],
   "networkAccess": {
     "allowedDomains": [
       "https://figma.com",
-      "https://www.gravatar.com/",
-      "https://www.gravatar.com/avatar",
       "https://httpbin.org/get",
       "https://jsonplaceholder.typicode.com/posts/",
       "https://picsum.photos/"

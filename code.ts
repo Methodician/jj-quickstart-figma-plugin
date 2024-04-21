@@ -1,15 +1,100 @@
-// This plugin will open a window to prompt the user to enter a number, and
-// it will then create that many rectangles on the screen.
-
-// This file holds the main code for plugins. Code in this file has access to
-// the *figma document* via the figma global object.
-// You can access browser APIs in the <script> tag inside "ui.html" which has a
-// full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
-
-// This shows the HTML page in "ui.html".
-
 const page = figma.currentPage;
 let initialCount = 0;
+
+const getTextNodeDescription = (node: TextNode) => {
+  const {
+    fontName,
+    fontSize,
+    characters,
+    textAlignVertical,
+    textAlignHorizontal,
+  } = node;
+
+  let fonts, sizes;
+  if (fontName === figma.mixed) {
+    fonts = node.getStyledTextSegments(['fontName']);
+  }
+  if (fontSize === figma.mixed) {
+    sizes = node.getStyledTextSegments(['fontSize']);
+  }
+  return {
+    characters,
+    fontName: fontName === figma.mixed ? 'mixed' : fontName,
+    fonts,
+    fontSize: fontSize === figma.mixed ? 'mixed' : fontSize,
+    sizes,
+    textAlignVertical,
+    textAlignHorizontal,
+  };
+};
+
+const cycleFonts = async (node: TextNode) => {
+  const { fontName, fonts } = getTextNodeDescription(node);
+  // get any fonts required
+  if (fonts) {
+    for (const font of fonts) {
+      await figma.loadFontAsync(font.fontName as FontName);
+    }
+  } else {
+    await figma.loadFontAsync(fontName as FontName);
+  }
+  // switch all fonts to the next font
+  if (fonts) {
+    for (const [index, font] of fonts.entries()) {
+      const nextFont = fonts[(index + 1) % fonts.length];
+      node.setRangeFontName(font.start, font.end, nextFont.fontName);
+    }
+  } else {
+    figma.notify("No mixed fonts found so we won't cycle them");
+  }
+};
+
+const experimentWithSelectedText = async () => {
+  const nodes = figma.currentPage.selection;
+  for (const node of nodes) {
+    if (node.type === 'TEXT') {
+      const description = await getTextNodeDescription(node);
+      console.log(description);
+      await cycleFonts(node);
+    }
+  }
+};
+
+const invertImageColors = async (node: RectangleNode) => {
+  const newFills: Array<Paint> = [];
+  // check if nodeFills is an array of Paints
+  if (!Array.isArray(node.fills)) {
+    figma.closePlugin('Plugin should be run on a node with paint fills');
+  }
+  for (const paint of node.fills as Array<Paint>) {
+    if (paint.type === 'IMAGE' && paint.imageHash) {
+      const image = figma.getImageByHash(paint.imageHash);
+      const bytes = await image!.getBytesAsync();
+
+      // Create an invisible iframe to act as a "worker" which will do the task
+      // of decoding and send us a message when it's done.
+      // (workaround to use browser APIs in a plugin)
+      figma.showUI(__html__, { visible: false });
+      // Send the raw bytes of the file to the worker.
+      figma.ui.postMessage(bytes);
+      // Wait for the worker's response.
+      const newBytes: Uint8Array = await new Promise((resolve, reject) => {
+        return (figma.ui.onmessage = (value) => {
+          if (!(value instanceof Uint8Array)) {
+            reject(new Error('Expected Uint8Array'));
+          } else {
+            resolve(value);
+          }
+        });
+      });
+      // Create a new paint for the new image.
+      const newPaint = JSON.parse(JSON.stringify(paint));
+      newPaint.imageHash = figma.createImage(newBytes).hash;
+      newFills.push(newPaint);
+    }
+  }
+  node.fills = newFills;
+};
 
 const createImage = async (
   imageUrl: string,
@@ -181,6 +266,8 @@ figma.on('run', async (event) => {
   try {
     if (parameters) {
       await runWithParamsAndCommand(command, parameters);
+    } else {
+      await runWithCommandOnly(command);
     }
   } catch (error) {
     console.error(error);
@@ -192,6 +279,31 @@ figma.on('run', async (event) => {
     figma.closePlugin(`Completed ${command}.`);
   }
 });
+
+const runWithCommandOnly = async (command: string) => {
+  console.log({ command });
+  switch (command) {
+    case 'invert-image-colors': {
+      const nodes = figma.currentPage.selection;
+      console.log({ nodes });
+      if (nodes.length === 0) {
+        return figma.closePlugin('Select a node with an image fill');
+      }
+      for (const node of nodes) {
+        if (node.type === 'RECTANGLE') {
+          await invertImageColors(node);
+        }
+      }
+      break;
+    }
+    case 'test-text-nodes': {
+      await experimentWithSelectedText();
+      break;
+    }
+    default:
+      return figma.closePlugin('Unknown command');
+  }
+};
 
 const runWithParamsAndCommand = async (
   command: string,
@@ -230,5 +342,20 @@ const runWithParamsAndCommand = async (
       }
       break;
     }
+    case 'invert-image-colors': {
+      const nodes = figma.currentPage.selection;
+      console.log({ nodes });
+      if (nodes.length === 0) {
+        return figma.closePlugin('Select a node with an image fill');
+      }
+      for (const node of nodes) {
+        if (node.type === 'RECTANGLE') {
+          await invertImageColors(node);
+        }
+      }
+      break;
+    }
+    default:
+      return figma.closePlugin('Unknown command');
   }
 };
