@@ -1,6 +1,58 @@
 const page = figma.currentPage;
 let initialCount = 0;
 
+const listVarsBoundToNode = async (node: BaseNode) => {
+  console.log(node.type);
+  if (
+    node.type === 'GROUP' ||
+    node.type === 'PAGE' ||
+    node.type === 'DOCUMENT'
+  ) {
+    for (const child of node.children) {
+      listVarsBoundToNode(child);
+    }
+  } else {
+    const boundVars = node.boundVariables!;
+    console.log(node.name, { boundVars });
+  }
+};
+
+const listVarsBoundToSelection = async () => {
+  const nodes = figma.currentPage.selection;
+  for (const node of nodes) {
+    listVarsBoundToNode(node);
+  }
+};
+
+const createVariableCollection = (name: string) => {
+  const collection = figma.variables.createVariableCollection(name);
+  const lowestPositiveIntegerVar = figma.variables.createVariable(
+    'Lowest Positive Integer',
+    collection,
+    'FLOAT'
+  );
+  for (const mode of collection.modes) {
+    lowestPositiveIntegerVar.setValueForMode(mode.modeId, 1);
+  }
+  console.log(collection);
+  return collection.name;
+};
+
+const experimentWithVariables = async () => {
+  figma.notify('Hello, variables!');
+  const localCollections =
+    await figma.variables.getLocalVariableCollectionsAsync();
+  for (const collection of localCollections) {
+    console.log(collection.name);
+    console.log(collection.modes);
+    for (const vid of collection.variableIds) {
+      console.log(vid);
+    }
+  }
+  const localVariables = await await figma.variables.getLocalVariablesAsync();
+  console.log({ localVariables });
+};
+
 const getTextNodeDescription = (node: TextNode) => {
   const {
     fontName,
@@ -51,6 +103,7 @@ const cycleFonts = async (node: TextNode) => {
 
 const experimentWithSelectedText = async () => {
   const nodes = figma.currentPage.selection;
+  console.log({ nodes });
   for (const node of nodes) {
     if (node.type === 'TEXT') {
       const description = await getTextNodeDescription(node);
@@ -296,10 +349,15 @@ const runWithCommandOnly = async (command: string) => {
       }
       break;
     }
-    case 'test-text-nodes': {
+    case 'test-text-nodes':
       await experimentWithSelectedText();
       break;
-    }
+    case 'test-variables':
+      await experimentWithVariables();
+      break;
+    case 'list-variables-bound-to-selection':
+      await listVarsBoundToSelection();
+      break;
     default:
       return figma.closePlugin('Unknown command');
   }
@@ -353,6 +411,14 @@ const runWithParamsAndCommand = async (
           await invertImageColors(node);
         }
       }
+      break;
+    }
+    case 'create-variable-collection': {
+      if (!parameters.name) {
+        return figma.closePlugin('Name parameter is required');
+      }
+      const name = await createVariableCollection(parameters.name);
+      console.log(name);
       break;
     }
     default:

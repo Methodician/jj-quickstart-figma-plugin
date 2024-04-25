@@ -62,6 +62,25 @@
     {
       "name": "Experiment with text",
       "command": "test-text-nodes"
+    },
+    {
+      "name": "Experiment with variables",
+      "command": "test-variables"
+    },
+    {
+      "name": "Create variable collection",
+      "command": "create-variable-collection",
+      "parameters": [
+        {
+          "name": "name",
+          "key": "name",
+          "allowFreeform": true
+        }
+      ]
+    },
+    {
+      "name": "list variables bound to selection",
+      "command": "list-variables-bound-to-selection"
     }
   ],
   "networkAccess": {
