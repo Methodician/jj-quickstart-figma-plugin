@@ -2,7 +2,7 @@
   "name": "JJ Quickstart",
   "id": "1360366068882425926",
   "api": "1.0.0",
-  "main": "code.js",
+  "main": "dist/code.js",
   "capabilities": [],
   "enableProposedApi": false,
   "documentAccess": "dynamic-page",
